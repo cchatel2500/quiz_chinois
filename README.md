@@ -132,7 +132,7 @@ Chinois,Pinyin,Français
 
 ---
 
-###📱 Optimisé pour smartphone / tablette
+### 📱 Optimisé pour smartphone / tablette
 
   -	Interface lisible
 
