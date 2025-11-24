@@ -1,511 +1,749 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<title>Quiz chinois</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Quiz Chinois — Adaptatif (avec options)</title>
 <style>
-        body {
-        font-family: sans-serif;
-        margin: 20px;
-        text-align: center;
-        }
-        .btn {
-        padding: 6px 14px;
-        margin: 4px;
-        cursor: pointer;
-        border: none;
-        border-radius: 5px;
-        }
+  :root{
+    --primary:#2563eb;
+    --muted:#666;
+    --ok:#0a8f3a;
+    --ko:#d9534f;
+    --bg-ok:#d4edda;
+    --bg-ko:#f8d7da;
+    --panel-width:80%;
+    --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  }
+  body{
+    font-family:var(--font-sans);
+    margin:12px;
+    text-align:center;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1{ margin:6px 0 4px; font-size:1.2rem; }
+  /* header row */
+  #headerRow { display:flex; gap:8px; align-items:center; justify-content:center; flex-wrap:wrap; margin-bottom:6px;}
+  input[type="file"]{ font-size:0.9rem; }
+  select, input[type="text"], button { font-size:1rem; }
+  button { padding:8px 12px; border-radius:8px; border:none; cursor:pointer; background:var(--primary); color:white; }
+  button.secondary { background:#e6e6e6; color:#000; }
 
-        /* Boutons principaux en bleu */
-        .btn-primary {
-          background-color: #007BFF;
-          color: white;
-        }
-        .btn-primary:hover {
-          background-color: #0056b3;
-        }
+  /* meta */
+  #metaRow { margin-top:6px; font-size:0.95rem; color:var(--muted); display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap;}
+  #fileName { font-weight:600; color:#222; }
+  #difficulty { font-style:italic; color:var(--muted); }
 
-        /* Boutons secondaires en gris */
-        .btn-secondary {
-          background-color: #ddd;
-          color: #000;
-        }
-        .btn-secondary:hover {
-          background-color: #bbb;
-        }
+  /* question */
+  #question { font-size:2.4rem; margin:18px 6px; min-height:2.8rem; line-height:1; }
+  #question span { transition: color 0.18s ease; margin:0 4px; display:inline-block; }
+  .ok { color: var(--ok); font-weight:700; }
+  .ko { color: var(--ko); font-weight:700; }
+  .pending { color: #111; }
 
-  input[type="text"] {
-    padding: 6px;
-    text-align: center;
-    border: 1px solid #aaa;
-    border-radius: 5px;
-  }
-  #quizZone {
-    margin-top: 20px;
-  }
-  #scoreZone {
-    font-weight: bold;
-    margin: 10px 0;
-  }
-  #questionChinese {
-    font-size: 2em;
-    margin-bottom: 10px;
-  }
-  #historyZone {
-    margin-top: 20px;
-    display: none;
-    max-height: 250px;
+  /* input & actions */
+  #inputRow { display:flex; justify-content:center; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap; }
+  #answer { width:66%; padding:8px 10px; border-radius:8px; border:1px solid #ccc; outline:none; font-size:1.05rem; }
+  #actionButtons { display:flex; gap:8px; justify-content:center; align-items:center; margin-top:12px; flex-wrap:wrap; }
+  .btn-hidden{ display:none !important; }
+
+  /* hint/score/history */
+  #pinyinHint { margin-top:10px; color:#333; font-size:1rem; min-height:1.2rem; }
+  #score { margin-top:10px; font-weight:700; }
+  #historyZone { max-height:220px; overflow-y:auto; margin-top:12px; border:1px solid #eee; border-radius:8px; padding:6px; background:#fafafa; text-align:left; display:block; }
+  #historyZone table{ width:100%; border-collapse:collapse; font-size:0.92rem; }
+  #historyZone th, #historyZone td { padding:6px 8px; border-bottom:1px solid #eee; text-align:left; }
+  #historyZone tr.okRow { background: var(--bg-ok); }
+  #historyZone tr.koRow { background: var(--bg-ko); }
+
+  .muted{ color:var(--muted); font-size:0.9rem; }
+  .small { font-size:0.9rem; color:var(--muted); }
+  .translation { margin-top:6px; font-style:italic; color:#333; font-size:0.98rem; }
+  .pointsSmall { font-size:0.95rem; color:#444; margin-top:6px; }
+
+  /* -------------------------
+     Options slide-in panel (from right)
+     ------------------------- */
+  #optionsButton { background: transparent; border:1px solid var(--primary); color:var(--primary); padding:8px 10px; border-radius:8px; }
+  #optionsPanel {
+    position: fixed;
+    right: calc(-1 * var(--panel-width));
+    top: 0;
+    width: var(--panel-width);
+    height: 100%;
+    background: #fff;
+    z-index: 9999;
+    box-shadow: -6px 0 16px rgba(0,0,0,0.2);
+    transition: right 0.28s ease;
+    padding: 14px;
     overflow-y: auto;
-    border-top: 2px solid #ccc;
-    padding-top: 10px;
   }
-  #historyTable {
-    border-collapse: collapse;
-    margin: 0 auto;
-    width: 90%;
-  }
-  #historyTable th, #historyTable td {
-    border: 1px solid #888;
-    padding: 4px 8px;
-  }
-  #responseRow {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 10px;
-    margin-top: 10px;
+  #optionsPanel.open { right: 0; }
+  #optionsPanel h2 { margin-top:4px; margin-bottom:8px; font-size:1.1rem; }
+  .optionGroup { margin-bottom:12px; text-align:left; }
+  .optionGroup label { display:block; margin:6px 0; font-size:0.95rem; }
+  .radioInline { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .radioInline label { display:flex; gap:6px; align-items:center; padding:6px 8px; border-radius:6px; background:#f6f6f6; cursor:pointer; }
+  .optionFooter { display:flex; gap:8px; justify-content:space-between; align-items:center; margin-top:12px; }
+
+  /* mobile tweaks */
+  @media (max-width:500px){
+    #answer { width:86%; }
+    #question{ font-size:2rem; }
   }
 </style>
 </head>
 <body>
+<h1>Quiz Chinois — Adaptatif</h1>
 
-<h2>📘 Quiz chinois</h2>
-
-<input type="file" id="fileInput" accept=".csv"><br>
-
-<div style="display:flex; align-items:center; justify-content:center; gap:10px; margin-top:10px;">
-  <label><b>Séparateur :</b></label>
-  <input type="text" id="sepInput" value=";" maxlength="1" style="width:40px;">
-  <label><b>Guillemet :</b></label>
-  <input type="text" id="quoteInput" value='"' maxlength="1" style="width:40px;">
-</div>
-
-<div style="margin-top:10px;">
-  <label><b>Mode de devinette :</b></label>
-  <select id="modeSelect" disabled>
+<!-- Header & controls -->
+<div id="headerRow">
+  <input type="file" id="csvFile" accept=".csv" />
+  <select id="modeSelect" title="Mode de devinette">
     <option value="1-2">Chinois → Pinyin</option>
     <option value="1-3">Chinois → Français</option>
-    <option value="2-3">Pinyin → Français</option>
     <option value="3-2">Français → Pinyin</option>
+    <option value="2-3">Pinyin → Français</option>
   </select>
-  <button id="startBtn" class="btn btn-primary" disabled>Démarrer le quiz</button>
+  <button id="startBtn">Démarrer</button>
+  <!-- Options button (opens panel) -->
+  <button id="optionsButton" title="Options">⚙️ Options</button>
 </div>
 
-<div id="scoreZone">
-  Score : <span id="scoreValue">0</span> /
-  <span id="totalValue">0</span>
-  (<span id="percentValue">0</span>%)
+<!-- Meta info -->
+<div id="metaRow">
+  <div id="fileName">Aucun fichier chargé</div>
+  <div id="difficulty" class="muted">Difficulté moyenne : -</div>
 </div>
 
+<!-- Main quiz -->
+<div id="question" aria-live="polite"></div>
 
-<div id="quizZone"></div>
+<div id="inputRow">
+  <input id="answer" type="text" placeholder="Votre réponse..." autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
+</div>
 
-<div id="historyZone">
-  <h3>🕘 Historique des 10 dernières questions</h3>
-  <table id="historyTable">
-    <thead>
-      <tr><th>Chinois</th><th>Pinyin</th><th>Français</th><th>Typed</th><th>Time</th><th>Ok</th></tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+<div id="actionButtons">
+  <button id="checkBtn">Vérifier</button>
+  <button id="devineBtn" class="secondary">💡 Devine</button>
+  <button id="frdicBtn" class="secondary">🔍 Frdic</button>
+  <button id="historyBtn" class="secondary">📜 Historique</button>
+</div>
+
+<div id="pinyinHint" aria-live="polite"></div>
+<div id="score">Score : 0 / 0 (0%)</div>
+<div id="historyZone" class="btn-hidden"></div>
+
+<!-- Options panel (slide-in from right) -->
+<div id="optionsPanel" aria-hidden="true">
+  <h2>Options</h2>
+
+  <div class="optionGroup">
+    <strong>CSV — format</strong>
+    <div class="radioInline" style="margin-top:8px;">
+      <label><input type="radio" name="csvSep" value="," checked> Virgule ( , )</label>
+      <label><input type="radio" name="csvSep" value=";"> Point-virgule ( ; )</label>
+      <label><input type="radio" name="csvSep" value="tab"> Tabulation ( ↹ )</label>
+      <label><input type="radio" name="csvSep" value="|"> Pipe ( | )</label>
+    </div>
+    <label style="margin-top:8px;">
+      <input type="radio" name="csvSep" value="other"> Autre :
+      <input id="csvSepOther" type="text" maxlength="1" placeholder="#" style="width:40px; margin-left:8px;">
+    </label>
+
+    <div style="margin-top:8px;">
+      <strong>Guillemet</strong>
+      <div class="radioInline" style="margin-top:8px;">
+        <label><input type="radio" name="csvQuote" value='"' checked> " </label>
+        <label><input type="radio" name="csvQuote" value="'" > ' </label>
+        <label><input type="radio" name="csvQuote" value="none"> Aucun</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="optionGroup">
+    <strong>Affichage & Comportement</strong>s
+    <label><input type="checkbox" id="optColoring" checked> Coloration pinyin (zone entrée)</label>
+    <label><input type="checkbox" id="showFrench" checked> Afficher la traduction par défaut</label>
+    <label><input type="checkbox" id="optAutoLoadLast"> Recharger le dernier fichier au lancement (si présent)</label>
+  </div>
+
+  <div class="optionGroup">
+    <strong>Actions</strong>
+    <button id="btnExportStats" class="secondary" style="margin-right:6px;">Exporter stats (JSON)</button>
+    <label style="display:inline-block;">
+      <button id="btnImportStats" class="secondary">Importer stats</button>
+      <input id="importFile" type="file" accept=".json" style="display:none;" />
+    </label>
+    <button id="btnResetStats" class="secondary" style="margin-left:6px;">Réinitialiser stats (fichier)</button>
+  </div>
+
+  <div class="optionFooter">
+    <div class="small">Options sauvegardées localement</div>
+    <div>
+      <button id="btnSaveOptions" class="secondary">Enregistrer</button>
+      <button id="btnCloseOptions" class="secondary">Fermer</button>
+    </div>
+  </div>
 </div>
 
 <script>
-let data = [];
-let weights = [];
-let currentIndex = 0;
-let score = 0;
-let history = [];
-let totalTries = 0; // nombre total de tentatives
+/* =========================================================
+   Integrated adaptive quiz with right-side options panel
+   - Options: separator, quote, coloring toggle, import/export stats
+   - CSV validated: must have >= 3 columns
+   - Options persisted in localStorage
+   ========================================================= */
 
-function escapeHtml(text) {
-  if (typeof text !== "string") return text;
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
+/* ---------------------------
+   Elements & globals
+   --------------------------- */
+const csvFile = document.getElementById('csvFile');
+const startBtn = document.getElementById('startBtn');
+const modeSelect = document.getElementById('modeSelect');
+const fileNameDiv = document.getElementById('fileName');
+const difficultyDiv = document.getElementById('difficulty');
+const questionDiv = document.getElementById('question');
+const answerInput = document.getElementById('answer');
+const checkBtn = document.getElementById('checkBtn');
+const devineBtn = document.getElementById('devineBtn');
+const frdicBtn = document.getElementById('frdicBtn');
+const historyBtn = document.getElementById('historyBtn');
+const historyZone = document.getElementById('historyZone');
+const pinyinHint = document.getElementById('pinyinHint');
+const scoreDiv = document.getElementById('score');
+const showFrenchCheckbox = document.getElementById('showFrench');
 
+const optionsButton = document.getElementById('optionsButton');
+const optionsPanel = document.getElementById('optionsPanel');
+const btnCloseOptions = document.getElementById('btnCloseOptions');
+const btnSaveOptions = document.getElementById('btnSaveOptions');
+const btnExportStats = document.getElementById('btnExportStats');
+const btnImportStats = document.getElementById('btnImportStats');
+const importFile = document.getElementById('importFile');
+const btnResetStats = document.getElementById('btnResetStats');
 
-// --- Normalisation
-function normalize(str) {
-  return str
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[’'‘]/g, "'")
-    .replace(/[^a-zA-Z0-9\u4e00-\u9fff']/g, "")
-    .toLowerCase()
-    .trim();
-}
-
-// --- Parser CSV simple
-function parseCSV(text, separator = ";", quoteChar = '"') {
-  const rows = [];
-  let current = "";
-  let insideQuotes = false;
-  let row = [];
-
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    if (c === quoteChar) {
-      if (insideQuotes && text[i + 1] === quoteChar) {
-        current += quoteChar; i++;
-      } else {
-        insideQuotes = !insideQuotes;
-      }
-    } else if (c === separator && !insideQuotes) {
-      row.push(current); current = "";
-    } else if ((c === "\n" || c === "\r") && !insideQuotes) {
-      if (current || row.length > 0) {
-        row.push(current);
-        rows.push(row);
-        row = [];
-        current = "";
-      }
-    } else {
-      current += c;
-    }
-  }
-  if (current || row.length > 0) {
-    row.push(current);
-    rows.push(row);
-  }
-  return rows;
-}
-
-// --- Lecture CSV
-document.getElementById("fileInput").addEventListener("change", function(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-
-  reader.onload = function(ev) {
-    const text = ev.target.result;
-    const separator = document.getElementById("sepInput").value || ";";
-    const quoteChar = document.getElementById("quoteInput").value || '"';
-    let rows;
-    try {
-      rows = parseCSV(text, separator, quoteChar);
-    } catch (err) {
-      alert("⚠️ Erreur lecture CSV : " + err.message);
-      resetInterface();
-      return;
-    }
-
-    if (!rows || rows.length < 2 || rows[0].length < 3) {
-      alert("⚠️ Fichier invalide : au moins 3 colonnes requises.");
-      resetInterface();
-      return;
-    }
-
-    data = rows.slice(1);
-    weights = new Array(data.length).fill(1);
-    score = 0;
-    document.getElementById("scoreValue").textContent = score;
-    document.getElementById("modeSelect").disabled = false;
-    document.getElementById("startBtn").disabled = false;
-    document.getElementById("quizZone").innerHTML = "";
-    document.getElementById("historyZone").style.display = "none";
-  };
-
-  reader.onerror = function() {
-    alert("⚠️ Impossible de lire le fichier.");
-    resetInterface();
-  };
-
-  reader.readAsText(file, "utf-8");
-});
-
-function resetInterface() {
-  document.getElementById("fileInput").value = "";
-  data = [];
-  weights = [];
-  document.getElementById("modeSelect").disabled = true;
-  document.getElementById("startBtn").disabled = true;
-  document.getElementById("quizZone").innerHTML = "";
-  document.getElementById("historyZone").style.display = "none";
-}
-
-// --- Démarrer le quiz
-document.getElementById("startBtn").addEventListener("click", function() {
-  score = 0;
-  history = [];
-  document.getElementById("scoreValue").textContent = score;
-  document.getElementById("historyZone").style.display = "none";
-  showQuestion();
-});
-
-// --- Afficher une question
-function showQuestion() {
-  const quizZone = document.getElementById("quizZone");
-  quizZone.innerHTML = "";
-
-  // Tirage pondéré
-  const totalWeight = weights.reduce((a,b) => a + b, 0);
-  let r = Math.random() * totalWeight;
-  for (let i = 0; i < weights.length; i++) {
-    r -= weights[i];
-    if (r <= 0) { currentIndex = i; break; }
-  }
-
-  const mode = document.getElementById("modeSelect").value;
-  const [fromCol, toCol] = mode.split("-").map(x => parseInt(x,10) - 1);
-  const question = data[currentIndex][fromCol];
-
-  const questionDiv = document.createElement("div");
-  questionDiv.id = "questionChinese";
-  questionDiv.innerHTML = fromCol === 0 ? `<b>${question}</b>` : `${question}`;
-  quizZone.appendChild(questionDiv);
-
-  const responseRow = document.createElement("div");
-  responseRow.id = "responseRow";
-
-  const input = document.createElement("input");
-  input.type = "text";
-  input.id = "answerInput";
-  input.placeholder = "Votre réponse...";
-
-  input.addEventListener("input", function() {
-  const mode = document.getElementById("modeSelect").value;
-  const [, toCol] = mode.split("-").map(x => parseInt(x,10) - 1);
-  let expected = data[currentIndex][toCol].trim();
-
-  if (toCol === 2) {
-    expected = expected.replace(/^\s*\d+[\.\)]\s*/, "");
-    const semi = expected.indexOf(";");
-    if (semi !== -1) expected = expected.slice(0, semi).trim();
-  }
-
-  const user = input.value;
-  const normalizedExpected = normalize(expected);
-  const normalizedUser = normalize(user);
-
-  let allGood = true;
-  for (let i = 0; i < normalizedUser.length; i++) {
-    if (normalizedUser[i] !== normalizedExpected[i]) {
-      allGood = false;
-      break;
-    }
-  }
-
-  if (normalizedUser.length === 0) {
-    input.style.backgroundColor = "white";
-  } else if (allGood) {
-    input.style.backgroundColor = "#c7f9cc"; // vert clair
-  } else {
-    input.style.backgroundColor = "#f9cccc"; // rouge clair
-  }
-});
-
-  const checkBtn = document.createElement("button");
-  checkBtn.className = "btn btn-primary";
-  checkBtn.textContent = "Vérifier";
-
-  responseRow.appendChild(input);
-  responseRow.appendChild(checkBtn);
-  quizZone.appendChild(responseRow);
-
-  const buttonZone = document.createElement("div");
-  const dictBtn = document.createElement("button");
-  dictBtn.className = "btn btn-secondary";
-  dictBtn.textContent = "🔍 Frdic";
-  dictBtn.style.display = fromCol === 0 ? "inline-block" : "none";
-
-  dictBtn.addEventListener("click", () => {
-    const chinese = data[currentIndex][0];
-    const url = `https://www.frdic.com/dicts/fr/${encodeURIComponent(chinese)}`;
-    window.open(url, "_blank");
-  });
-
-  const histBtn = document.createElement("button");
-  histBtn.className = "btn btn-secondary";
-  histBtn.textContent = "🕘 Historique";
-  // histBtn.addEventListener("click", showHistory);
-  histBtn.addEventListener("click", toggleHistory);
-
-  buttonZone.appendChild(dictBtn);
-  buttonZone.appendChild(histBtn);
-  quizZone.appendChild(buttonZone);
-
-  const feedbackDiv = document.createElement("div");
-  feedbackDiv.style.marginTop = "10px";
-  quizZone.appendChild(feedbackDiv);
-
-  checkBtn.addEventListener("click", function() {
-    const userAnswer = input.value.trim();
-    let expected = data[currentIndex][toCol].trim();
-
-    if (toCol === 2) {
-      expected = expected.replace(/^\s*\d+[\.\)]\s*/, "");
-      const semi = expected.indexOf(";");
-      if (semi !== -1) expected = expected.slice(0, semi).trim();
-    }
-
-    totalTries++;
-    if (normalize(userAnswer) === normalize(expected)) {
-      feedbackDiv.innerHTML = `✅ Correct ! ${data[currentIndex][0]} ; ${data[currentIndex][1]} ; ${data[currentIndex][2]}`;
-      weights[currentIndex] = Math.max(1, weights[currentIndex] * 0.5);
-      score++;
-      correct = true;
-    } else {
-      feedbackDiv.innerHTML = `❌ Faux. Réponse attendue : ${expected} ;  ${data[currentIndex][2]}`;
-      weights[currentIndex] *= 1.5;
-      correct = false;
-    }
-    updateScoreDisplay();
-    saveProgress();
-
-    // history.unshift([...data[currentIndex]]);
-    history.unshift({
-    chinois: data[currentIndex][0],
-    pinyin: data[currentIndex][1],
-    Français: data[currentIndex][2],
-    typed: userAnswer,
-    time: new Date().toLocaleTimeString(),
-    ok: correct
-    });
-    if (history.length > 10) history.pop();
-
-    setTimeout(showQuestion, 5000);
-  });
-}
-
-function updateScoreDisplay() {
-  document.getElementById("scoreValue").textContent = score;
-  document.getElementById("totalValue").textContent = totalTries;
-  const percent = totalTries > 0 ? Math.round((score / totalTries) * 100) : 0;
-  document.getElementById("percentValue").textContent = percent;
-}
-
-// Sauvegarde dans localStorage
-function saveProgress() {
-  const mode = document.getElementById("modeSelect").value;
-  const saveData = {
-    mode,
-    score,
-    totalTries,
-    weights
-  };
-  localStorage.setItem("quizChineseProgress", JSON.stringify(saveData));
-}
-
-// Chargement au démarrage
-function loadProgress() {
-  const saved = localStorage.getItem("quizChineseProgress");
-  if (!saved) return;
-  try {
-    const parsed = JSON.parse(saved);
-    document.getElementById("modeSelect").value = parsed.mode || "1-2";
-    score = parsed.score || 0;
-    totalTries = parsed.totalTries || 0;
-    weights = parsed.weights || weights;
-    updateScoreDisplay();
-  } catch (err) {
-    console.warn("⚠️ Données sauvegardées corrompues :", err);
-  }
-}
-
-
-// --- Historique
-function showHistory() {
-  const zone = document.getElementById("historyZone");
-  if (history.length === 0) {
-    zone.style.display = "block";
-    zone.innerHTML = "<tr><td colspan='3'><i>Aucune question encore.</i></td></tr>";
-    return;
-  }
-    let html = `
-    <table>
-      <thead>
-        <tr>
-          <th>Chinois</th>
-          <th>Pinyin</th>
-          <th>Français</th>
-          <th>Typed</th>
-          <th>Time</th>
-          <th>Ok</th>
-        </tr>
-      </thead>
-      <tbody>
-  `;
-  history.forEach(h => {
-   const color = h.ok ? 'green' : 'red';
-   const icon = h.ok ? '🟢' : '🔴';
-   html += `
-       <tr style="color:${color}">
-        <td>${escapeHtml(h.chinois)}</td>
-        <td>${escapeHtml(h.pinyin)}</td>
-        <td>${escapeHtml(h.Français)}</td>
-        <td>${escapeHtml(h.typed || '')}</td>
-        <td>${escapeHtml(h.time || '')}</td>
-        <td style="text-align:center;">${icon}</td>
-      </tr>`;
-  });
-  html += "</tbody></table>";
-  zone.innerHTML = html;
-  zone.style.display = "block";
-}
-
+let data = [];                   // rows of CSV [col1, col2, col3]
+let currentIndex = -1;
+let currentFileName = null;
+let stats = [];                  // {shown, success, fail, hint} per row
+let history = [];                // last 10 entries
+let totalScore = 0;
+let totalQuestions = 0;
+let validationTerminee = false;
+let usedHintForCurrent = false;
 let historyVisible = false;
 
-function toggleHistory() {
-  const zone = document.getElementById("historyZone");
-  if (!zone) return;
+/* ---------------------------
+   Options management
+   --------------------------- */
+const OPTIONS_KEY = 'quiz_options_v1';
 
-  if (historyVisible) {
-    zone.innerHTML = "";
-  } else {
-    showHistory();
-  }
-
-  historyVisible = !historyVisible; // inverse l’état
+function defaultOptions(){
+  return {
+    separator: ';',
+    quote: '"',
+    coloring: true,
+    showFrench: true,
+    autoLoadLast: false
+  };
 }
 
-function renderHistory(){
-  const div = document.getElementById("historyZone");
-  // si tu veux garder l'en-tête, adapte ; ici on réécrit le contenu
-  if (history.length === 0) {
-    div.innerHTML = "<h4>Historique</h4><div><i>Aucune question.</i></div>";
+function loadOptions(){
+  try{
+    const raw = localStorage.getItem(OPTIONS_KEY);
+    if(!raw) return defaultOptions();
+    const o = JSON.parse(raw);
+    return Object.assign(defaultOptions(), o);
+  }catch(e){ return defaultOptions(); }
+}
+
+function saveOptions(opts){
+  try{ localStorage.setItem(OPTIONS_KEY, JSON.stringify(opts)); }catch(e){ console.warn(e); }
+}
+
+function applyOptionsToUI(opts){
+  // set separator radios
+  const sep = opts.separator || ';';
+  let found = false;
+  document.querySelectorAll('input[name="csvSep"]').forEach(r=>{
+    if(r.value === sep){
+      r.checked = true; found = true;
+    } else r.checked = false;
+  });
+  // if not a listed value put 'other'
+  if(!found){
+    document.querySelectorAll('input[name="csvSep"]').forEach(r=>r.checked = (r.value==='other'));
+    document.getElementById('csvSepOther').value = sep;
+  } else {
+    document.getElementById('csvSepOther').value = '';
+  }
+
+  // quote
+  document.querySelectorAll('input[name="csvQuote"]').forEach(r=>{
+    if(r.value === (opts.quote || '"')) r.checked = true;
+    else if(opts.quote === '' && r.value === 'none') r.checked = true;
+    else r.checked = false;
+  });
+
+  // other options
+  document.getElementById('optColoring').checked = !!opts.coloring;
+  document.getElementById('showFrench').checked = !!opts.showFrench;
+  document.getElementById('optAutoLoadLast').checked = !!opts.autoLoadLast;
+
+  // also set visible checkbox beside main UI
+  showFrenchCheckbox.checked = !!opts.showFrench;
+}
+
+function readOptionsFromUI(){
+  const sepRad = document.querySelector('input[name="csvSep"]:checked').value;
+  let separator = sepRad;
+  if(sepRad === 'tab') separator = '\t';
+  if(sepRad === 'other'){
+    const v = document.getElementById('csvSepOther').value || '';
+    separator = v || ';';
+  }
+  const quoteRad = document.querySelector('input[name="csvQuote"]:checked').value;
+  const quote = (quoteRad === 'none') ? '' : quoteRad;
+  return {
+    separator,
+    quote,
+    coloring: !!document.getElementById('optColoring').checked,
+    showFrench: !!document.getElementById('showFrench').checked,
+    autoLoadLast: !!document.getElementById('optAutoLoadLast').checked
+  };
+}
+
+/* initialize options UI */
+const opts = loadOptions();
+applyOptionsToUI(opts);
+
+/* open / close handlers */
+optionsButton.addEventListener('click', ()=>{ optionsPanel.classList.add('open'); optionsPanel.setAttribute('aria-hidden','false'); });
+btnCloseOptions.addEventListener('click', ()=>{ optionsPanel.classList.remove('open'); optionsPanel.setAttribute('aria-hidden','true'); });
+btnSaveOptions.addEventListener('click', ()=>{
+  const newOpts = readOptionsFromUI();
+  saveOptions(newOpts);
+  // apply main UI changes instantly
+  showFrenchCheckbox.checked = newOpts.showFrench;
+  optionsPanel.classList.remove('open');
+  optionsPanel.setAttribute('aria-hidden','true');
+  alert('Options enregistrées.');
+});
+
+/* export / import stats */
+btnExportStats.addEventListener('click', ()=>{
+  if(!currentFileName){ alert('Chargez d\'abord un fichier pour exporter ses stats.'); return; }
+  const key = statsKeyForFile(currentFileName);
+  const raw = localStorage.getItem(key);
+  if(!raw){ alert('Aucune statistique à exporter pour ce fichier.'); return; }
+  const blob = new Blob([raw], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = currentFileName + '.stats.json'; document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+});
+
+btnImportStats.addEventListener('click', ()=> {
+  importFile.click();
+});
+importFile.addEventListener('change', (e)=>{
+  const f = e.target.files[0]; if(!f) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try{
+      const parsed = JSON.parse(ev.target.result);
+      if(!Array.isArray(parsed) || parsed.length !== data.length){ alert('Le fichier de stats ne correspond pas (nombre de lignes différent).'); return; }
+      stats = parsed.map(s=>({
+        shown: s.shown||0, success: s.success||0, fail: s.fail||0, hint: s.hint||0
+      }));
+      saveStatsForFile();
+      alert('Stats importées.');
+      difficultyDiv.textContent = "Difficulté moyenne : " + computeAverageDifficulty().toFixed(2) + " / 1.00";
+    }catch(err){ alert('Import invalide : ' + err); }
+  };
+  reader.readAsText(f,'utf-8');
+});
+
+/* reset stats for current file */
+btnResetStats.addEventListener('click', ()=>{
+  if(!currentFileName){ alert('Aucun fichier chargé.'); return; }
+  if(!confirm('Réinitialiser les statistiques pour ' + currentFileName + ' ?')) return;
+  stats = new Array(data.length).fill(0).map(()=>({shown:0, success:0, fail:0, hint:0}));
+  saveStatsForFile();
+  totalScore = 0; totalQuestions = 0;
+  saveMetaForFile();
+  difficultyDiv.textContent = "Difficulté moyenne : " + computeAverageDifficulty().toFixed(2) + " / 1.00";
+  updateScoreDisplay();       // met le score à zéro
+  alert('Statistiques réinitialisées pour ' + currentFileName);
+});
+
+/* ---------------------------
+   Persistence helpers (per-file)
+   --------------------------- */
+function statsKeyForFile(fname){ return fname ? 'quizStats_' + fname : 'quizStats_default'; }
+function metaKeyForFile(fname){ return statsKeyForFile(fname) + '_meta'; }
+
+function saveStatsForFile(){
+  if(!currentFileName) return;
+  try{ localStorage.setItem(statsKeyForFile(currentFileName), JSON.stringify(stats)); }catch(e){ console.warn(e); }
+}
+function saveMetaForFile(){
+  if(!currentFileName) return;
+  try{ localStorage.setItem(metaKeyForFile(currentFileName), JSON.stringify({ totalScore, totalQuestions })); }catch(e){ console.warn(e); }
+}
+function loadStatsForFile(){
+  if(!currentFileName) return;
+  try{
+    const raw = localStorage.getItem(statsKeyForFile(currentFileName));
+    if(raw){
+      const parsed = JSON.parse(raw);
+      if(Array.isArray(parsed) && parsed.length === data.length){
+        stats = parsed.map(s=>({
+          shown: s.shown||0, success: s.success||0, fail: s.fail||0, hint: s.hint||0
+        }));
+      } else {
+        stats = new Array(data.length).fill(0).map(()=>({shown:0, success:0, fail:0, hint:0}));
+      }
+    } else {
+      stats = new Array(data.length).fill(0).map(()=>({shown:0, success:0, fail:0, hint:0}));
+    }
+    const metaRaw = localStorage.getItem(metaKeyForFile(currentFileName));
+    if(metaRaw){
+      try{ const m = JSON.parse(metaRaw); totalScore = m.totalScore||totalScore; totalQuestions = m.totalQuestions||totalQuestions; }catch(e){}
+    }
+  }catch(e){ console.warn(e); stats = new Array(data.length).fill(0).map(()=>({shown:0, success:0, fail:0, hint:0})); }
+}
+
+/* ---------------------------
+   CSV loading & parsing using options (separator + quote)
+   - checks that each parsed row has at least 3 columns
+   - if not, alerts and refuses to load
+   --------------------------- */
+csvFile.addEventListener('change', (e)=>{
+  const f = e.target.files[0];
+  if(!f) return;
+  const reader = new FileReader();
+  reader.onload = (ev)=>{
+    try{
+      // read current options (separator/quote) from UI (latest saved UI)
+      const o = readOptionsFromUI();
+      // determine separator and quote
+      const sep = o.separator;
+      const quoteChar = o.quote || '';
+      const text = ev.target.result;
+      // split lines
+      const rawLines = text.split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length>0);
+      const parsedRows = rawLines.map(line => parseLine(line, sep, quoteChar));
+      // validate rows: at least 3 columns each
+      let ok = true;
+      for(let r of parsedRows){
+        if(!Array.isArray(r) || r.length < 3){ ok = false; break; }
+      }
+      if(!ok){
+        alert('Erreur : le fichier CSV doit contenir au minimum 3 colonnes par ligne (chinois ; pinyin ; français). Vérifiez le séparateur/guillemet dans Options.');
+        // reset any partial state
+        data = []; currentFileName = null; fileNameDiv.textContent = 'Aucun fichier chargé';
+        difficultyDiv.textContent = 'Difficulté moyenne : -';
+        return;
+      }
+      // success: set data and stats
+      data = parsedRows;
+      currentFileName = f.name;
+      fileNameDiv.textContent = currentFileName;
+      // initialize or load stats
+      stats = new Array(data.length).fill(0).map(()=>({shown:0, success:0, fail:0, hint:0}));
+      loadStatsForFile();
+      difficultyDiv.textContent = 'Difficulté moyenne : ' + computeAverageDifficulty().toFixed(2) + ' / 1.00';
+      alert(data.length + ' lignes chargées depuis ' + currentFileName);
+    }catch(err){
+      alert('Erreur lecture CSV : ' + err);
+      data = []; currentFileName = null; fileNameDiv.textContent = 'Aucun fichier chargé';
+      difficultyDiv.textContent = 'Difficulté moyenne : -';
+    }
+  };
+  reader.readAsText(f, 'utf-8');
+});
+
+/* parse one line with sep and quote */
+function parseLine(line, sep, quote){
+  // simple state machine to handle quoted fields when quote provided
+  const parts = [];
+  let cur = '';
+  let inQuote = false;
+  const quoteChar = quote || '';
+  for(let i=0;i<line.length;i++){
+    const ch = line[i];
+    if(quoteChar && ch === quoteChar){
+      inQuote = !inQuote;
+      continue;
+    }
+    if(!inQuote && sep !== '\t' && ch === sep){ parts.push(cur); cur = ''; continue; }
+    if(!inQuote && sep === '\t' && ch === '\t'){ parts.push(cur); cur = ''; continue; }
+    cur += ch;
+  }
+  parts.push(cur);
+  // trim spaces
+  return parts.map(p=>p.trim());
+}
+
+/* ---------------------------
+   Difficulty & selection logic
+   --------------------------- */
+function difficultyForIndex(i){
+  const s = stats[i] || {shown:0, success:0, fail:0, hint:0};
+  if(!s || s.shown === 0) return 5.0;
+  return 2 * (s.hint || 0) + (s.fail || 0) - (s.success || 0);
+}
+function computeAverageDifficulty(){
+  if(!stats || stats.length===0) return 0;
+  let sum=0, n=0;
+  for(let i=0;i<stats.length;i++){
+    const d = difficultyForIndex(i);
+    // normalize between 0 and 1 for display (simple heuristic)
+    const nd = Math.max(0, Math.min(1, d / 5));
+    sum += nd; n++;
+  }
+  return n ? (sum / n) : 0;
+}
+function chooseNextIndex(){
+  if(!data || data.length===0) return -1;
+  let best = -Infinity; let bestIndices = [];
+  for(let i=0;i<data.length;i++){
+    const d = difficultyForIndex(i);
+    if(d > best){ best = d; bestIndices = [i]; }
+    else if(d === best) bestIndices.push(i);
+  }
+  if(bestIndices.length === 0) return Math.floor(Math.random() * data.length);
+  return bestIndices[Math.floor(Math.random() * bestIndices.length)];
+}
+
+/* ---------------------------
+   Show question
+   --------------------------- */
+function showQuestion(){
+  validationTerminee = false;
+  usedHintForCurrent = false;
+  pinyinHint.textContent = '';
+  if(!data || data.length===0){ alert('Chargez d\'abord un fichier CSV valide.'); return; }
+  currentIndex = chooseNextIndex();
+  if(currentIndex < 0){ alert('Aucune donnée disponible.'); return; }
+  const row = data[currentIndex];
+  const qCol = parseInt(modeSelect.value[0],10) - 1;
+  const aCol = parseInt(modeSelect.value[2],10) - 1;
+  currentChinese = row[qCol] || '';
+  correctAnswer = row[aCol] || '';
+  // render chinese chars as spans
+  let html = '';
+  for(let i=0;i<currentChinese.length;i++){
+    html += `<span class="pending" id="c${i}">${escapeHtml(currentChinese[i])}</span>`;
+  }
+  questionDiv.innerHTML = html;
+  answerInput.value = ''; answerInput.style.backgroundColor = ''; answerInput.focus();
+}
+
+/* ---------------------------
+   Input handling & coloring behavior
+   --------------------------- */
+function normalizePinyin(s){
+  if(!s) return '';
+  s = s.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  s = s.replace(/[üǖǘǚǜÜǕǗǙǛ]/g,'u');
+  s = s.replace(/v/gi,'u');
+  s = s.replace(/[^a-zA-Z0-9\s]/g,'');
+  return s.trim().toLowerCase();
+}
+answerInput.addEventListener('input', (e)=>{
+  if(validationTerminee) return;
+  // coloring of input (prefix)
+  const val = e.target.value || '';
+  const expectedStr = normalizePinyin(correctAnswer || '');
+  const givenStr = normalizePinyin(val || '');
+  const optsNow = readOptionsFromUI();
+  if(givenStr.length === 0) answerInput.style.backgroundColor = '';
+  else if(optsNow.coloring && expectedStr.startsWith(givenStr)) answerInput.style.backgroundColor = '#d1fae5';
+  else if(optsNow.coloring) answerInput.style.backgroundColor = '#fee2e2';
+  // update char coloring (only when syllable completed)
+  updateQuestionColoring(val);
+});
+function updateQuestionColoring(userInput){
+  if(!currentChinese) return;
+  if(modeSelect.value !== '1-2'){
+    for(let i=0;i<currentChinese.length;i++){ const el = document.getElementById('c'+i); if(el) el.className='pending'; }
     return;
   }
-  let html = "<h4>Historique</h4>\
-  <table style='margin:0 auto;'><thead>\
-  <tr><th>Chinois</th>\
-  <th>Pinyin</th>\
-  <th>Français</th>\
-  <th>Tapé</th>\
-  <th>Résultat</th>\
-  </tr></thead><tbody>";
-  history.forEach(h => {
-    html += `<tr>
-      <td>${escapeHtml(h.c1)}</td>
-      <td>${escapeHtml(h.c2)}</td>
-      <td>${escapeHtml(h.c3)}</td>
-      //<td>${escapeHtml(h.typed)}</td>
-      //<td style="color:${h.ok?'green':'red'}">${h.ok? 'OK':'KO'}</td>
-    </tr>`;
-  });
-  html += "</tbody></table>";
-  div.innerHTML = html;
+  const expectedWords = (correctAnswer||'').trim().split(/\s+/).map(normalizePinyin).filter(Boolean);
+  const givenRaw = userInput || '';
+  const givenWords = givenRaw.trim().length ? givenRaw.trim().split(/\s+/).map(normalizePinyin).filter(Boolean) : [];
+  const endsWithSpace = /\s$/.test(userInput);
+  const allSyllablesTypedExact = (givenWords.length === expectedWords.length && givenWords.length>0 && givenWords.every((w,i)=>w===expectedWords[i]));
+  for(let i=0;i<currentChinese.length;i++){
+    const el = document.getElementById('c'+i);
+    if(!el) continue;
+    el.className = 'pending';
+    if(i < givenWords.length){
+      if(endsWithSpace || i < givenWords.length -1 || allSyllablesTypedExact){
+        if(expectedWords[i] && givenWords[i] === expectedWords[i]) el.className = 'ok';
+        else el.className = 'ko';
+      } else {
+        el.className = 'pending';
+      }
+    } else {
+      el.className = 'pending';
+    }
+  }
 }
 
+/* ---------------------------
+   Check answer & scoring
+   --------------------------- */
+function escapeHtml(s){ if(s==null) return ''; return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
 
-// Charger la progression précédente au démarrage
-window.addEventListener("load", loadProgress);
+checkBtn.addEventListener('click', ()=>{
+  if(validationTerminee) return;
+  validationTerminee = true;
+  const userRaw = (answerInput.value || '').trim();
+  const expectedWords = (correctAnswer||'').trim().split(/\s+/).map(normalizePinyin).filter(Boolean);
+  const givenWords = userRaw.length ? userRaw.split(/\s+/).map(normalizePinyin).filter(Boolean) : [];
 
+  // ensure stats entry
+  if(!stats[currentIndex]) stats[currentIndex] = {shown:0, success:0, fail:0, hint:0};
+
+  // count correct syllables
+  let correctCount = 0;
+  for(let i=0;i<currentChinese.length;i++){
+    if(expectedWords[i] && givenWords[i] && expectedWords[i] === givenWords[i]) correctCount++;
+  }
+  // scoring: 0 if devine used
+  let point = 0;
+  const fullMatch = expectedWords.length > 0 && expectedWords.length === givenWords.length && expectedWords.every((w,i)=>w===givenWords[i]);
+  if(!usedHintForCurrent){
+    point = fullMatch ? 1 : (correctCount / Math.max(1, currentChinese.length));
+  } else {
+    point = 0;
+  }
+
+  // update global totals
+  totalScore += point;
+  totalQuestions += 1;
+
+  // update stats
+  stats[currentIndex].shown += 1;
+  stats[currentIndex].success += point;
+  stats[currentIndex].fail += (1 - point);
+  saveStatsForFile();
+  saveMetaForFile();
+
+  // final coloring
+  updateQuestionColoring(userRaw);
+
+  // show answer details + translation if option set
+  const small = `<br><small>Réponse attendue : ${escapeHtml(correctAnswer)}</small>`;
+  let transHtml = '';
+  if(document.getElementById('showFrench').checked){
+    const fr = data[currentIndex] && data[currentIndex][2] ? data[currentIndex][2] : '';
+    if(fr) transHtml = `<div class="translation">Traduction : ${escapeHtml(fr)}</div>`;
+  }
+  const ptsHtml = `<div class="pointsSmall">Points obtenus pour cette question : ${Math.round(point*100)/100}</div>`;
+  const nextBtnHtml = `<br><button id="nextBtn" style="margin-top:8px;">Suivant</button>`;
+  questionDiv.insertAdjacentHTML('beforeend', small + transHtml + ptsHtml + nextBtnHtml);
+
+  // history
+  const now = new Date();
+  history.unshift({ c1: currentChinese, c2: correctAnswer, typed: userRaw, point: Math.round(point*100)/100, time: now.toLocaleString(), devined: usedHintForCurrent, fullOK: fullMatch });
+  if(history.length > 10) history.pop();
+
+  updateScoreDisplay();
+  difficultyDiv.textContent = 'Difficulté moyenne : ' + computeAverageDifficulty().toFixed(2) + ' / 1.00';
+
+  // next button handler
+  document.getElementById('nextBtn').addEventListener('click', ()=>{
+    usedHintForCurrent = false;
+    showQuestion();
+  });
+});
+
+/* ---------------------------
+   Devine: reveal first wrong pinyin only and penalize strongly
+   --------------------------- */
+devineBtn.addEventListener('click', ()=>{
+  if(currentIndex < 0 || !data[currentIndex]) return;
+  const userRaw = (answerInput.value || '').trim();
+  const expectedWords = (correctAnswer||'').trim().split(/\s+/).map(normalizePinyin).filter(Boolean);
+  const givenWords = userRaw.length ? userRaw.split(/\s+/).map(normalizePinyin).filter(Boolean) : [];
+  let idx = -1;
+  for(let i=0;i<expectedWords.length;i++){ if(!givenWords[i] || givenWords[i] !== expectedWords[i]){ idx = i; break; } }
+  if(idx === -1){ pinyinHint.textContent = 'Tous les mots semblent corrects (ou pas encore saisis).'; return; }
+  const wrong = expectedWords[idx] || '';
+  pinyinHint.innerHTML = `Indice : [<strong>${escapeHtml(wrong)}</strong>]`;
+
+  // penalize: mark used hint and increment stats accordingly
+  usedHintForCurrent = true;
+  if(!stats[currentIndex]) stats[currentIndex] = {shown:0, success:0, fail:0, hint:0};
+  stats[currentIndex].hint = (stats[currentIndex].hint || 0) + 1;
+  stats[currentIndex].fail = (stats[currentIndex].fail || 0) + 1;
+  saveStatsForFile();
+  difficultyDiv.textContent = 'Difficulté moyenne : ' + computeAverageDifficulty().toFixed(2) + ' / 1.00';
+});
+
+/* ---------------------------
+   Frdic button: lookup
+   --------------------------- */
+frdicBtn.addEventListener('click', ()=>{
+  if(!currentChinese) return;
+  const url = 'https://www.frdic.com/dicts/fr/' + encodeURIComponent(currentChinese);
+  window.open(url, '_blank');
+});
+
+/* ---------------------------
+   History toggle show/hide (does not erase)
+   --------------------------- */
+historyBtn.addEventListener('click', ()=>{
+  if(historyVisible){ historyZone.classList.add('btn-hidden'); historyVisible = false; }
+  else { renderHistory(); historyZone.classList.remove('btn-hidden'); historyVisible = true; }
+});
+
+function renderHistory(){
+  if(history.length === 0){ historyZone.innerHTML = '<div class="small">Aucune entrée.</div>'; return; }
+  let html = `<table><thead><tr><th>Chinois</th><th>Pinyin attendu</th><th>Vous avez tapé</th><th>Points</th><th>Heure</th></tr></thead><tbody>`;
+  history.forEach(h=>{
+    const cls = h.fullOK ? 'okRow' : 'koRow';
+    html += `<tr class="${cls}"><td>${escapeHtml(h.c1)}</td><td>${escapeHtml(h.c2)}</td><td>${escapeHtml(h.typed)}</td><td>${h.point}</td><td>${escapeHtml(h.time)}</td></tr>`;
+  });
+  html += '</tbody></table>';
+  historyZone.innerHTML = html;
+}
+
+/* ---------------------------
+   Score display
+   --------------------------- */
+function updateScoreDisplay(){
+  const pct = totalQuestions ? Math.round((totalScore / totalQuestions) * 100) : 0;
+  scoreDiv.textContent = `Score : ${Math.round(totalScore*100)/100} / ${totalQuestions} (${pct}%)`;
+}
+
+/* ---------------------------
+   Start / init handlers
+   --------------------------- */
+startBtn.addEventListener('click', ()=>{
+  if(!data || data.length === 0){ alert('Chargez un fichier CSV valide (min 3 colonnes).'); return; }
+  showQuestion();
+});
+window.addEventListener('load', ()=>{
+  modeSelect.value = '1-2';
+  // apply options persisted earlier
+  const loadedOpts = loadOptions();
+  applyOptionsToUI(loadedOpts);
+  if(loadedOpts.autoLoadLast){
+    // attempt to load last file? not implemented automatically because browser sandbox prevents reading file system
+    // but we keep this opt for future: we could auto-load stats for last filename if user loads file
+  }
+  difficultyDiv.textContent = 'Difficulté moyenne : -';
+});
+
+/* =========================================================
+   End of script
+   ========================================================= */
 </script>
 </body>
 </html>
